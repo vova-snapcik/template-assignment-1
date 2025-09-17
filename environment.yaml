@@ -1,0 +1,29 @@
+# template of an environment file for conda
+# update as needed
+
+name: gurobi-opt
+channels:
+  - conda-forge
+  - defaults
+dependencies:
+  - python=3.11
+  - gurobi            # gurobi + gurobipy from the official channel
+  - numpy>=1.26
+  - pandas>=2.1
+  - json
+  - csv
+  - matplotlib>=3.8
+  - seaborn>=0.13
+  - jupyterlab>=4.2
+  - ipykernel>=6.29
+  - pip
+  - pip:
+      - plotly>=5.22
+      - tqdm>=4.66
+
+# To create the environment please run:
+# conda env create -f environment.yaml
+
+# To install gurobi, enter the following command in the terminal:
+#conda install -c gurobi gurobi
+# You will need a Gurobi license to use the solver. Please visit https://www.gurobi.com/downloads/end-user-license-agreement-academic/ to get a free academic license.
