@@ -1,6 +1,6 @@
 [
     {
-        "consumer_ID": "C1",
+        "consumer_id": "C1",
         "DER_type": "solar",
         "hourly_profile_ratio": [
             0.0,

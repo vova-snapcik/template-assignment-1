@@ -1,5 +1,5 @@
 [
-    {"consumer_ID": "C1",
+    {"consumer_id": "C1",
     "grid_preferences": null,
     "DER_preferences": null,
     "load_preferences":[
