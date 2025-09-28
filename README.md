@@ -156,3 +156,8 @@ These files allow customization of user behavior, DER production, and network co
 
 ## Starter Code Structure
 
+Explanation of our code:
+
+The data_loader fil organizes raw input data which is used for the opt_model
+The model is build in the opt_model
+main loads data and passes to the opt_model for building the model.

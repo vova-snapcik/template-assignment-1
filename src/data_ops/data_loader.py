@@ -110,3 +110,20 @@ class DataLoader:
             raise ValueError(f"Unsupported aux file type: {suffix}")
 
         return self.aux_data
+    
+    def load_dataset_as_df(self):
+        """
+        Load all JSON/CSV files under question_name and convert them to pandas DataFrames
+        if possible.
+        """
+        data_dict = self._load_dataset()
+        df_dict = {}
+
+        for name, content in data_dict.items():
+            # Only convert lists of dicts to DataFrames
+            if isinstance(content, list):
+                df_dict[name] = pd.DataFrame(content)
+            else:
+                df_dict[name] = content  # keep as-is if not a list of dicts
+
+        return df_dict
