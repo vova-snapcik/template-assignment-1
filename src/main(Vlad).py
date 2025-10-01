@@ -1,0 +1,56 @@
+#%% Imports
+
+from data_ops import DataLoader
+from pathlib import Path
+import pandas as pd
+
+from opt_model import OptModel
+from utils import run_epsilon_constraint
+
+# --- Main function to control execution ---
+def main(question_flag="1.b"):
+    # Set data file prefix based on the flag
+    if question_flag == "1.a":
+        data_prefix = "question_1a"
+        print("--- Running: Question 1.a (Min Cost w/ Min Energy Target) ---")
+    elif question_flag == "1.b":
+        data_prefix = "question_1b"  # Assuming Q1.ii uses the same data set
+        print("--- Running: Question 1.b (Multi-Objective Epsilon-Constraint) ---")
+    else:
+        print(f"Unknown question flag: {question_flag}. Exiting.")
+        return
+
+    # Resolve the data directory
+    project_root = Path(__file__).resolve().parent.parent
+    data_dir = project_root / "data"
+
+    # Load data
+    loader = DataLoader(input_path=str(data_dir), question_name=data_prefix)
+    all_data = loader._load_dataset()
+
+    # Convert to DataFrames
+    df_data = {}
+    for name, content in all_data.items():
+        if isinstance(content, list):
+            df_data[name] = pd.DataFrame(content)
+        else:
+            df_data[name] = content
+
+    # Execute the selected problem
+    if question_flag == "1.a":
+        # Run original single-objective problem
+        optmodel = OptModel(df_data)
+        optmodel.build_and_solve()
+
+    elif question_flag == "1.b":
+        # Run new multi-objective problem
+        run_epsilon_constraint(df_data)
+
+
+# %% Execution
+if __name__ == "__main__":
+    # To switch exercises, simply change the flag below:
+    # Use "1.a" for the original cost minimization problem
+    # Use "1.b" for the new epsilon-constraint problem
+
+    main(question_flag="1.b")
