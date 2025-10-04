@@ -3,7 +3,7 @@ import gurobipy as gp
 from gurobipy import GRB
 from pathlib import Path
 
-class OptModel:
+class OptModel1b:
 
     def __init__(self, data: dict):
         self.data = data
@@ -85,13 +85,13 @@ class OptModel:
         # else:
         #     print(f"optimization of {model.ModelName} was not successful")
             
-        #print(f"PV {p_pv}")
+        print(f"PV {p_pv}")
         # print(f"optimal objective: {optimal_objective}")
 
         # ... after m.optimize()
 
         # To see the load profile:
-        #print(f"Load Profile: {[p_load[t].X for t in hours]}")
+        print(f"Load Profile: {[p_load[t].X for t in hours]}")
 
         # To see the values of the other variables to fully interpret the load:
         # print(f"Import Profile: {[p_import[t].X for t in hours]}")
@@ -110,19 +110,15 @@ class OptModel:
         load_df = self.data["appliance_params"]["load"]
         der_appliance_df = self.data["appliance_params"]["DER"]
         usage_pref_df = self.data["usage_preferences"]
-        der_storage_df = self.data["appliance_params"]["storage"]
-
 
         prices = bus_df["energy_price_DKK_per_kWh"].iloc[0]
         import_tariff = bus_df["import_tariff_DKK/kWh"].iloc[0]
         export_tariff = bus_df["export_tariff_DKK/kWh"].iloc[0]
         max_import = bus_df["max_import_kW"].iloc[0]
         max_export = bus_df["max_export_kW"].iloc[0]
-        
 
         max_pv_power = der_appliance_df[0]["max_power_kW"]
         pv_profile = der_df["hourly_profile_ratio"].iloc[0]
-        
         hours = range(len(prices))
 
         max_load = load_df[0]["max_load_kWh_per_hour"]
@@ -145,7 +141,8 @@ class OptModel:
         p_export = m.addVars(hours, name="p_export", lb=0, ub=max_export)
 
         # --- 4. Constraints (Mandatory for Q1.ii) ---
-        
+        # Power Balance
+        m.addConstrs((p_load[t] == p_pv[t] + p_import[t] - p_export[t]) for t in hours)
         # PV production limit
         m.addConstrs((p_pv[t] + p_pv_curt[t] == pv_max[t]) for t in hours)
 
@@ -160,8 +157,6 @@ class OptModel:
         # --- 6. Solve based on Mode ---
         if mode == "cost_only":
             # PHASE 1: Find Epsilon_max (Max Discomfort at Min Cost)
-            # Power Balance
-            m.addConstrs((p_load[t] == p_pv[t] + p_import[t] - p_export[t]) for t in hours)
             m.setObjective(J_cost, GRB.MINIMIZE)
             m.optimize()
 
@@ -177,9 +172,6 @@ class OptModel:
             # PHASE 2: Epsilon-Constraint Run
 
             # Primary Objective: Minimize Cost
-            # Power Balance
-
-            m.addConstrs((p_load[t] == p_pv[t] + p_import[t] - p_export[t]) for t in hours)
             m.setObjective(J_cost, GRB.MINIMIZE)
 
             # Constraint: Discomfort must be less than epsilon
@@ -192,58 +184,8 @@ class OptModel:
                 actual_discomfort = J_discomfort.getValue()
                 load_profile = [p_load[t].X for t in hours]
                 return (actual_discomfort, m.ObjVal, load_profile)
-            
-
-            if m.status == GRB.OPTIMAL:
-                # Return actual discomfort achieved, min cost, and load profile
-                actual_discomfort = J_discomfort.getValue()
-                load_profile = [p_load[t].X for t in hours]
-                return (actual_discomfort, m.ObjVal, load_profile)
             else:
                 return None
-            
-            
-        elif mode == "battery" and epsilon_discomfort is not None:
-            storage_capacity = der_storage_df[0]["storage_capacity_kWh"]
-            max_ch_power_ratio = der_storage_df[0]["max_charging_power_ratio"]
-            max_dis_power_ratio = der_storage_df[0]["max_discharging_power_ratio"]
-            charging_efficiency = der_storage_df[0]["charging_efficiency"]
-            discharging_efficiency = der_storage_df[0]["discharging_efficiency"]
-            p_ch = m.addVars(hours, name="p_ch", lb=0, ub=max_ch_power_ratio*storage_capacity)
-            p_dis = m.addVars(hours, name="p_dis", lb=0, ub=max_dis_power_ratio*storage_capacity)
-            E_bat = m.addVars(hours, name="E_bat", lb=0, ub=storage_capacity)
-
-            for t in hours:
-                if t == 0:
-                    m.addConstr(E_bat[t] == storage_capacity*0.5 + (p_ch[t] * charging_efficiency - p_dis[t] / discharging_efficiency))
-                else:
-                    m.addConstr(E_bat[t] == E_bat[t-1] + (p_ch[t] * charging_efficiency - p_dis[t] / discharging_efficiency))
-            #Set new power balance with battery
-            m.addConstrs((p_load[t] == p_pv[t] + p_import[t] - p_export[t]+p_dis[t] - p_ch[t]) for t in hours)
-
-            m.setObjective(J_cost, GRB.MINIMIZE)
-
-
-            # Constraint: Discomfort must be less than epsilon
-            m.addConstr(J_discomfort <= epsilon_discomfort, name="Epsilon_Constraint")
-
-            m.optimize()
-
-            if m.status == GRB.OPTIMAL:
-                # Return actual discomfort achieved, min cost, and load profile
-                #actual_discomfort = J_discomfort.getValue()
-                #load_profile = [p_load[t].X for t in hours]
-                return m.ObjVal
-                #return (actual_discomfort, m.ObjVal, load_profile)
-            else:
-                return None
-
-
-           
 
         else:
             raise ValueError("Invalid mode specified for multi-objective solving.")
-
-
-
-
