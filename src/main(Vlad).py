@@ -51,7 +51,7 @@ def main(question_flag="1.c"):
         current_model = OptModel(df_data)
         result = current_model.build_and_solve_multi_objective(
             mode="epsilon",
-            epsilon_discomfort=24)
+            epsilon_discomfort=run_epsilon_constraint(df_data))
         
     
     elif question_flag == "1.c":

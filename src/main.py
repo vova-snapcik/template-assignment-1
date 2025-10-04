@@ -51,7 +51,7 @@ def main(question_flag="1.c"):
         current_model = OptModel(df_data)
         result = current_model.build_and_solve_multi_objective(
             mode="epsilon",
-            epsilon_discomfort=24)
+            epsilon_discomfort=run_epsilon_constraint(df_data))
         
     
     elif question_flag == "1.c":
@@ -70,7 +70,7 @@ if __name__ == "__main__":
     # Use "1.b" for the new epsilon-constraint problem
     # Use "1.c" for the battery installation problem (not yet implemented)
 
-    main(question_flag="1.c")
+    main(question_flag="1.b")
 
     """
 #Ignore this for now, just used for 1a previously

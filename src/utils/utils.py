@@ -6,7 +6,7 @@ import csv
 import numpy as np
 import pandas as pd
 from pathlib import Path
-from src.opt_model.opt_model import OptModel
+from opt_model import OptModel
 
 def load_dataset(base_path: Path, question_name: str):
     """
