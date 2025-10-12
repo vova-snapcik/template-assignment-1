@@ -17,11 +17,6 @@ class OptModel:
         der_appliance_df = self.data["appliance_params"]["DER"]
         usage_pref_df = self.data["usage_preference"]
 
-        # print(der_df)
-        # print(load_df)
-        # print(load_df)
-        # print(usage_pref)
-        # print(bus_df)
 
         # Get parameters
         prices = bus_df["energy_price_DKK_per_kWh"].iloc[0]
@@ -36,31 +31,45 @@ class OptModel:
 
         max_load = load_df[0]["max_load_kWh_per_hour"]
         load_prefs = usage_pref_df["load_preferences"].iloc[0]
-        min_total_energy = load_prefs[0]["min_total_energy_per_day_hour_equivalent"]
+        min_total_energy_hour = load_prefs[0]["min_total_energy_per_day_hour_equivalent"]
+        
 
 
         # PV max production
         pv_max = [max_pv_power * ratio for ratio in pv_profile]
+        #min total energy requirement
 
         # Model
         m = gp.Model("Consumer_Flexibility")
 
         # Decision variables
         p_load = m.addVars(hours, name="p_load", lb=0, ub=max_load)
-        p_pv = m.addVars(hours, name="p_pv", lb=0, ub=max_pv_power)
-        p_pv_curt = m.addVars(hours, name="p_pv_curt", lb=0)
+        p_pv = m.addVars(hours, name="p_pv", lb=0, ub=pv_max)
+        p_pv_curt = m.addVars(hours, name="p_pv_curt", lb=0, ub=pv_max)
         p_import = m.addVars(hours, name="p_import", lb=0, ub=max_import)
         p_export = m.addVars(hours, name="p_export", lb=0, ub=max_export)
+        min_total_energy = min_total_energy_hour * max_pv_power  # Convert to kWh/day
 
         # Constraints
-        #Power Balance
-        m.addConstrs((p_load[t] == p_pv[t] + p_import[t] - p_export[t]) for t in hours)
+        self.constraints = {}  # make a dict to store them
+        for t in hours:
+            self.constraints[f"power_balance[{t}]"] = m.addConstr(
+                p_load[t] == p_pv[t] + p_import[t] - p_export[t],
+                name=f"power_balance[{t}]"
+            )
+        # #Power Balance
+        # m.addConstrs((p_load[t] == p_pv[t] + p_import[t] - p_export[t]) for t in hours)
         #PV production limit
-        m.addConstrs((p_pv[t] + p_pv_curt[t] == pv_max[t]) for t in hours)
+        #m.addConstrs((p_pv[t] + p_pv_curt[t] == pv_max[t]) for t in hours)
 
 
-        # Total load energy requirement
-        m.addConstr(gp.quicksum(p_load[t] for t in hours) >= min_total_energy)
+        # # Total load energy requirement
+        # m.addConstr(gp.quicksum(p_load[t] for t in hours) >= min_total_energy)
+        # Minimum daily energy
+        self.constraints["energy_min"] = m.addConstr(
+            gp.quicksum(p_load[t] for t in hours) >= min_total_energy,
+            name="energy_min"
+        )
 
         # Objective
         total_cost = gp.quicksum(p_import[t] * (prices[t] + import_tariff)- p_export[t] * (prices[t] - export_tariff) for t in hours)
@@ -68,10 +77,63 @@ class OptModel:
 
         # Solve
         m.optimize()
+        #print(f"Min total energy: {min_total_energy}kWh/day" )
 
         # Print results
         if m.status == GRB.OPTIMAL:
-            optimal_objective = m.ObjVal
+            # optimal_objective = m.ObjVal
+
+            results = {
+            "obj": m.ObjVal,
+            "p_load": [p_load[t].X for t in hours],
+            "p_import": [p_import[t].X for t in hours],
+            "p_export": [p_export[t].X for t in hours],
+            "p_pv": [p_pv[t].X for t in hours],
+            "duals": [constr.Pi for constr in m.getConstrs()]
+            }
+            # return results
+        
+        
+            total_load = sum(p_load[t].X for t in hours)
+            total_import = sum(p_import[t].X for t in hours)
+            total_pv = sum(p_pv[t].X for t in hours)
+            total_export = sum(p_export[t].X for t in hours)
+            total_pv_used = total_pv - total_export
+                
+            print("\n=== Energy Summary ===")
+            print(f"Total energy consumed by load: {total_load:.4f} kWh/day")
+            print(f"  ├─ From grid (import): {total_import:.4f} kWh/day")
+            print(f"  └─ From PV:             {total_pv_used:.4f} kWh/day")
+
+            for t in hours:
+                lam = self.constraints[f"power_balance[{t}]"].Pi
+                print(f"lambda[{t}] = {lam:.4f}")
+            # Daily energy requirement
+            eta = self.constraints["energy_min"].Pi
+            print(f"eta (min daily energy) = {eta:.4f}")
+
+            #printing dual values of all constraints
+            # print("\n=== Optimal Dual Values ===")
+            # for constr in m.getConstrs():
+            #     print(f"{constr.ConstrName} dual: {constr.Pi}")
+
+            # results = {
+            # "obj": optimal_objective,
+            # "p_load": {t: p_load[t].X for t in hours},
+            # "p_pv": {t: p_pv[t].X for t in hours},
+            # "p_import": {t: p_import[t].X for t in hours},
+            # "p_export": {t: p_export[t].X for t in hours},
+            # "duals": {constr.ConstrName: constr.Pi for constr in m.getConstrs()},
+            # "eta": energy_constr.Pi if energy_constr else 0.0
+            # }
+            return results
+        else:
+            print(f"Optimization of {m.ModelName} was not successful")
+            return None
+
+        #     return results
+        # else:
+        #     return None
             #optimal_production_variables = [production_variables[g].x for g in GENERATORS] 
             #balance_dual = balance_constraint.Pi
             #capacity_optimal_duals = [capacity_constraints[g].Pi for g in GENERATORS]
@@ -99,6 +161,10 @@ class OptModel:
         # print(f"PV Curtailed Profile: {[p_pv_curt[t].X for t in hours]}")
 
         self.model = m
+
+    
+
+    
 
         # --- Q1.b: Multi-Objective (Epsilon-Constraint Method) ---
 
@@ -139,15 +205,15 @@ class OptModel:
 
         # --- 3. Decision Variables ---
         p_load = m.addVars(hours, name="p_load", lb=0, ub=max_load)
-        p_pv = m.addVars(hours, name="p_pv", lb=0, ub=max_pv_power)
-        p_pv_curt = m.addVars(hours, name="p_pv_curt", lb=0)
+        p_pv = m.addVars(hours, name="p_pv", lb=0, ub=pv_max)
+        #p_pv_curt = m.addVars(hours, name="p_pv_curt", lb=0)
         p_import = m.addVars(hours, name="p_import", lb=0, ub=max_import)
         p_export = m.addVars(hours, name="p_export", lb=0, ub=max_export)
 
         # --- 4. Constraints (Mandatory for Q1.ii) ---
         
         # PV production limit
-        m.addConstrs((p_pv[t] + p_pv_curt[t] == pv_max[t]) for t in hours)
+        #m.addConstrs((p_pv[t] + p_pv_curt[t] == pv_max[t]) for t in hours)
 
         # --- 5. Define Objective Functions (Expressions) ---
         # J_cost: Procurement Cost
@@ -184,14 +250,26 @@ class OptModel:
 
             # Constraint: Discomfort must be less than epsilon
             m.addConstr(J_discomfort <= epsilon_discomfort, name="Epsilon_Constraint")
+            #m.addConstr(p_load >= 27.9410, name="Epsilon_Constraint")
 
             m.optimize()
+            print(gp.quicksum(pv_max[t] for t in hours))
 
             if m.status == GRB.OPTIMAL:
                 # Return actual discomfort achieved, min cost, and load profile
-                actual_discomfort = J_discomfort.getValue()
-                load_profile = [p_load[t].X for t in hours]
-                return (actual_discomfort, m.ObjVal, load_profile)
+                #actual_discomfort = J_discomfort.getValue()
+                #load_profile = [p_load[t].X for t in hours]
+                total_load = sum(p_load[t].X for t in hours)
+                total_import = sum(p_import[t].X for t in hours)
+                total_pv = sum(p_pv[t].X for t in hours)
+                total_export = sum(p_export[t].X for t in hours)
+                total_pv_used = total_pv - total_export
+                    
+                print("\n=== Energy Summary ===")
+                print(f"Total energy consumed by load: {total_load:.4f} kWh/day")
+                print(f"  ├─ From grid (import): {total_import:.4f} kWh/day")
+                print(f"  └─ From PV:             {total_pv:.4f} kWh/day")
+                print(f"  └─ Export:             {total_export:.4f} kWh/day")
             
 
             if m.status == GRB.OPTIMAL:
@@ -199,9 +277,12 @@ class OptModel:
                 actual_discomfort = J_discomfort.getValue()
                 load_profile = [p_load[t].X for t in hours]
                 return (actual_discomfort, m.ObjVal, load_profile)
+            
+                
             else:
                 return None
             
+
             
         elif mode == "battery" and epsilon_discomfort is not None:
             storage_capacity = der_storage_df[0]["storage_capacity_kWh"]
@@ -209,41 +290,162 @@ class OptModel:
             max_dis_power_ratio = der_storage_df[0]["max_discharging_power_ratio"]
             charging_efficiency = der_storage_df[0]["charging_efficiency"]
             discharging_efficiency = der_storage_df[0]["discharging_efficiency"]
+
+            #Add variables for battery
             p_ch = m.addVars(hours, name="p_ch", lb=0, ub=max_ch_power_ratio*storage_capacity)
             p_dis = m.addVars(hours, name="p_dis", lb=0, ub=max_dis_power_ratio*storage_capacity)
             E_bat = m.addVars(hours, name="E_bat", lb=0, ub=storage_capacity)
+            s_pos = m.addVars(hours, name="s_pos", lb=0)
+            s_neg = m.addVars(hours, name="s_neg", lb=0)
+            constraints = {}
+            #initial energy in the battery
+            E0 = storage_capacity*0.5 
 
-            for t in hours:
-                if t == 0:
-                    m.addConstr(E_bat[t] == storage_capacity*0.5 + (p_ch[t] * charging_efficiency - p_dis[t] / discharging_efficiency))
-                else:
-                    m.addConstr(E_bat[t] == E_bat[t-1] + (p_ch[t] * charging_efficiency - p_dis[t] / discharging_efficiency))
+            #Power Balance with battery
+            # m.addConstr(E_bat[0] == E0 + (p_ch[0]*charging_efficiency - p_dis[0]/discharging_efficiency))
+
+            constraints["init_soc"] = m.addConstr(
+                E_bat[0] == E0 + (p_ch[0]*charging_efficiency - p_dis[0]/discharging_efficiency),
+                name="init_soc"
+            )
+            #m.addConstr(E_bat[len(hours)-1] == E0, name="terminal_soc")
+
+            constraints["terminal_soc"] = m.addConstr(E_bat[len(hours)-1] == E0, name="terminal_soc")
+
+            # for t in hours:
+            #     # if t == 0:
+            #     #     m.addConstr(E_bat[t] == storage_capacity*0.5) #+ (p_ch[t] * charging_efficiency - p_dis[t] / discharging_efficiency))
+            #     # elif t == 23:
+            #     #     m.addConstr(E_bat[t] == storage_capacity*0.5) #+ (p_ch[t] * charging_efficiency - p_dis[t] / discharging_efficiency))
+            #     # else:
+            #     #     m.addConstr(E_bat[t] == E_bat[t-1] + (p_ch[t] * charging_efficiency - p_dis[t] / discharging_efficiency))
+            #     m.addConstr(E_bat[t] == E_bat[t-1] + (p_ch[t] * charging_efficiency - p_dis[t] / discharging_efficiency))
+
+            # for t in range(1, len(hours)):
+            #     m.addConstr(E_bat[t] == E_bat[t-1] + (p_ch[t]*charging_efficiency - p_dis[t]/discharging_efficiency))
+
+            constraints["soc_balance"] = {
+                t: m.addConstr(
+                    E_bat[t] == E_bat[t-1] + (p_ch[t]*charging_efficiency - p_dis[t]/discharging_efficiency),
+                    name=f"soc_balance[{t}]"
+                ) for t in range(1, len(hours))
+            }
+
             #Set new power balance with battery
-            m.addConstrs((p_load[t] == p_pv[t] + p_import[t] - p_export[t]+p_dis[t] - p_ch[t]) for t in hours)
+            #m.addConstrs((p_load[t] == p_pv[t] + p_import[t] - p_export[t]+p_dis[t] - p_ch[t]) for t in hours)
+
+            constraints["power_balance"] = {
+                t: m.addConstr(
+                    p_load[t] == p_pv[t] + p_import[t] - p_export[t] + p_dis[t] - p_ch[t],
+                    name=f"power_balance[{t}]"
+                ) for t in hours
+            }
 
             m.setObjective(J_cost, GRB.MINIMIZE)
 
 
             # Constraint: Discomfort must be less than epsilon
-            m.addConstr(J_discomfort <= epsilon_discomfort, name="Epsilon_Constraint")
-
+            #m.addConstr(J_discomfort <= epsilon_discomfort, name="Epsilon_Constraint")
+            #constraints["epsilon"] = m.addConstr(J_discomfort <= epsilon_discomfort, name="Epsilon_Constraint")
+            constraints["epsilon_abs"] = m.addConstr(
+                gp.quicksum(s_pos[t] + s_neg[t] for t in hours) <= epsilon_discomfort,
+                name="EpsilonAbs"
+            )
+            J_cost = gp.quicksum(
+                p_import[t] * (prices[t] + import_tariff) - p_export[t] * (prices[t] - export_tariff)
+                for t in hours
+            )
             m.optimize()
 
             if m.status == GRB.OPTIMAL:
                 # Return actual discomfort achieved, min cost, and load profile
                 #actual_discomfort = J_discomfort.getValue()
                 #load_profile = [p_load[t].X for t in hours]
+                    # Power balance duals λ_t
+                # for t, constr in constraints["power_balance"].items():
+                #     try:
+                #         print(f"lambda[{t}] = {constr.Pi:.4f}")
+                #     except AttributeError:
+                #         print(f"lambda[{t}] = (no dual, constraint redundant or presolved out)")
+
+                # # SOC dynamics duals
+                # for t, constr in constraints["soc_balance"].items():
+                #     print(f"soc_balance[{t}] dual = {constr.Pi:.4f}")
+
+                # # Initial / terminal SOC multipliers
+                # print(f"init_soc dual = {constraints['init_soc'].Pi:.4f}")
+                # print(f"terminal_soc dual = {constraints['terminal_soc'].Pi:.4f}")
+
+                # # Quadratic epsilon constraint → use QCPi, not Pi
+                # print(f"epsilon dual = {constraints['epsilon'].QCPi:.4f}")
+                print("\n=== PRIMAL SOLUTION ===")
+                # Decision variable values
+                
+                # print("Hour | Load  | Import | Export | PV     | Charge | Discharge | SoC")
+                # for t in hours:
+                #     print(f"{t:02d}   | "
+                #         f"{p_load[t].X:6.2f} | "
+                #         f"{p_import[t].X:6.2f} | "
+                #         f"{p_export[t].X:6.2f} | "
+                #         f"{p_pv[t].X:6.2f} | "
+                #         f"{p_ch[t].X:6.2f} | "
+                #         f"{p_dis[t].X:6.2f} | "
+                #         f"{E_bat[t].X:6.2f}")
+
+                print(f"\nTotal cost = {m.ObjVal:.4f} DKK/day")
+
+                print("\n=== DUAL SOLUTION ===")
+                for t, constr in constraints["power_balance"].items():
+                    try:
+                        print(f"lambda[{t}] = {constr.Pi:.4f}")
+                    except:
+                        print(f"lambda[{t}] = not available")
+
+                for t, constr in constraints["soc_balance"].items():
+                    try:
+                        print(f"soc_balance[{t}] = {constr.Pi:.4f}")
+                    except:
+                        print(f"soc_balance[{t}] = not available")
+
+                try:
+                    print(f"init_soc dual = {constraints['init_soc'].Pi:.4f}")
+                except:
+                    print("init_soc dual not available")
+
+                try:
+                    print(f"terminal_soc dual = {constraints['terminal_soc'].Pi:.4f}")
+                except:
+                    print("terminal_soc dual not available")
+
+                try:
+                    print(f"epsilon dual = {constraints['epsilon'].QCPi:.4f}")
+                except:
+                    print("epsilon dual not available")
+
+
+                
+                # total_load = sum(p_load[t].X for t in hours)
+                # total_import = sum(p_import[t].X for t in hours)
+                # total_battery_discharge = sum(p_dis[t].X for t in hours)
+                # total_battery_charge = sum(p_ch[t].X for t in hours)
+                # total_pv = sum(p_pv[t].X for t in hours)
+                # total_export = sum(p_export[t].X for t in hours)
+                # total_pv_used = total_pv - total_export
+
+                # # Print energy summary
+                # print("\n=== Energy Summary ===")
+                # print(f"Total energy consumed by load: {total_load:.4f} kWh/day")
+                # print(f"  ├─ From grid (import): {total_import:.4f} kWh/day")
+                # print(f"  ├─ From PV:             {total_pv_used:.4f} kWh/day")
+                # print(f"  ├─ Export:             {total_export:.4f} kWh/day")
+                # print(f"  └─ Battery discharge:   {total_battery_discharge:.4f} kWh/day")
+                # print(f"  └─ Battery charge:   {total_battery_charge:.4f} kWh/day")
+                # print("\n=== Optimal Dual Values ===")
+                #for constr in m.getConstrs():
+                #    print(f"{constr.ConstrName} dual: {constr.Pi}")
                 return m.ObjVal
                 #return (actual_discomfort, m.ObjVal, load_profile)
             else:
                 return None
-
-
-           
-
-        else:
-            raise ValueError("Invalid mode specified for multi-objective solving.")
-
-
 
 

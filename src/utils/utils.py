@@ -100,3 +100,57 @@ def run_epsilon_constraint(df_data):
     for sol in pareto_solutions:
         print(f"{sol['epsilon_target']:^11.4f} | {sol['actual_discomfort']:^17.4f} | {sol['min_cost']:^13.4f}")
     print("-------------------------------------------------------------")
+
+
+
+def make_scenarios(bus_df):
+        base_prices = bus_df["energy_price_DKK_per_kWh"].iloc[0]
+        flat_prices = float(np.mean(base_prices)) 
+        flat_prices = [flat_prices]*len(base_prices)
+
+
+        return {
+            "Flat_Prices":{
+                "energy_price_DKK_per_kWh": flat_prices,
+                "import_tariff_DKK/kWh": 0.5,
+                 "export_tariff_DKK/kWh": 0.4,
+            },
+            "High_Export_Tariff" :{
+                "energy_price_DKK_per_kWh": base_prices,
+                "import_tariff_DKK/kWh": 0.5,
+                "export_tariff_DKK/kWh": 1.0,
+            },
+            "Low_Export_Tariff" :{
+                "energy_price_DKK_per_kWh": base_prices,
+                "import_tariff_DKK/kWh": 0.5,
+                 "export_tariff_DKK/kWh": 0.1,
+            },
+
+        }
+def make_scenarios_battery(bus_df):
+        base_prices = bus_df["energy_price_DKK_per_kWh"].iloc[0]
+        flat_prices = float(np.mean(base_prices)) 
+        flat_prices = [flat_prices]*len(base_prices)
+
+
+        return {
+            "Flat_Prices":{
+                "energy_price_DKK_per_kWh": flat_prices,
+                "import_tariff_DKK/kWh": 0.5,
+                 "export_tariff_DKK/kWh": 0.4,
+            },
+            "High_Export_Tariff" :{
+                "energy_price_DKK_per_kWh": base_prices,
+                "import_tariff_DKK/kWh": 0.5,
+                "export_tariff_DKK/kWh": 1.0,
+            },
+            "Low_Export_Tariff" :{
+                "energy_price_DKK_per_kWh": base_prices,
+                "import_tariff_DKK/kWh": 0.5,
+                 "export_tariff_DKK/kWh": 0.1,
+            },
+            "High_discomfort":{
+                "epsilon":24,
+            },
+
+        }    

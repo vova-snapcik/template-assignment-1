@@ -30,7 +30,6 @@ def main(question_flag="1.c"):
     # Load data
     loader = DataLoader(input_path=str(data_dir), question_name=data_prefix)
     all_data = loader._load_dataset()
-
     # Convert to DataFrames
     df_data = {}
     for name, content in all_data.items():

@@ -6,6 +6,13 @@ import pandas as pd
 
 from opt_model import OptModel
 from utils import run_epsilon_constraint
+from runner import Runner
+from utils import make_scenarios
+from utils import make_scenarios_battery
+from copy import deepcopy
+from data_ops import plot_single_scenario
+
+
 
 # --- Main function to control execution ---
 def main(question_flag="1.c"):
@@ -42,8 +49,42 @@ def main(question_flag="1.c"):
     # Execute the selected problem
     if question_flag == "1.a":
         # Run original single-objective problem
-        optmodel = OptModel(df_data)
-        optmodel.build_and_solve()
+        # optmodel = OptModel(df_data)
+        # optmodel.build_and_solve()
+
+        # scenarios = make_scenarios(df_data["bus_params"])
+        # runner = Runner(df_data, scenarios)
+        # results = runner.run_scenario_analysis()
+
+
+
+        scenarios = make_scenarios(df_data["bus_params"])
+        runner = Runner(df_data, scenarios)
+        results = runner.run_scenario_analysis()
+        all_results = {}
+        for name, sc in scenarios.items():
+            modified_data = deepcopy(df_data)
+            bus_df = modified_data["bus_params"]
+
+            # overwrite the paramameters that we want to change
+            for key, val in sc.items():
+                bus_df.at[0, key] = val
+            #print(modified_data)
+            print(f"\n=== {name} ===")
+            # solve
+            model = OptModel(modified_data)
+            res = model.build_and_solve()
+            all_results[name] = res
+            save_dir = Path(__file__).resolve().parent.parent / "plots"
+
+        for name, res in all_results.items():
+            plot_single_scenario(res, name, save_dir)
+
+                
+
+            
+            
+
 
     elif question_flag == "1.b":
         # Run new multi-objective problem
@@ -51,7 +92,7 @@ def main(question_flag="1.c"):
         current_model = OptModel(df_data)
         result = current_model.build_and_solve_multi_objective(
             mode="epsilon",
-            epsilon_discomfort=run_epsilon_constraint(df_data))
+            epsilon_discomfort= 0)#run_epsilon_constraint(df_data))
         
     
     elif question_flag == "1.c":
@@ -59,7 +100,28 @@ def main(question_flag="1.c"):
         current_model = OptModel(df_data)
         result = current_model.build_and_solve_multi_objective(
             mode="battery",
-            epsilon_discomfort=24)
+            epsilon_discomfort=0)
+        
+        # scenarios = make_scenarios_battery(df_data["bus_params"])
+        # runner = Runner(df_data, scenarios)
+        # results = runner.run_scenario_analysis_battery()
+        # all_results = {}
+        # for name, sc in scenarios.items():
+        #     modified_data = deepcopy(df_data)
+        #     bus_df = modified_data["bus_params"]
+
+        #     # overwrite the paramameters that we want to change
+        #     for key, val in sc.items():
+        #         bus_df.at[0, key] = val
+        #     #print(modified_data)
+        #     print(f"\n=== {name} ===")
+        #     # solve
+        #     epsilon_val = sc.get("epsilon",0)
+        #     model = OptModel(modified_data)
+        #     res = model.build_and_solve_multi_objective(
+        #         mode="battery",
+        #         epsilon_discomfort=epsilon_val)
+        #     all_results[name] = res
         
 
 
@@ -70,7 +132,7 @@ if __name__ == "__main__":
     # Use "1.b" for the new epsilon-constraint problem
     # Use "1.c" for the battery installation problem (not yet implemented)
 
-    main(question_flag="1.b")
+    main(question_flag="1.a")
 
     """
 #Ignore this for now, just used for 1a previously
