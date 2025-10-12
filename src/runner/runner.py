@@ -75,8 +75,7 @@ class Runner:
             results[name] = res  
         self.results = results
         return results
-        """Run scenario analysis for the configured scenarios (placeholder method)."""
-        pass
+       
 
     def run_scenario_analysis_battery(self):
         results = {}
@@ -94,6 +93,8 @@ class Runner:
                 bus_df["import_tariff"] = sc["import_tariff"]
             if "export_tariff" in sc:
                 bus_df["export_tariff"] = sc["export_tariff"]
+
+            #Modify epsilon if specified in the scenario
             if "epsilon" in sc:
                 bus_df["epsilon"] = sc["epsilon"]
 

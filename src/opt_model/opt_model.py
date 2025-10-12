@@ -37,7 +37,7 @@ class OptModel:
 
         # PV max production
         pv_max = [max_pv_power * ratio for ratio in pv_profile]
-        #min total energy requirement
+
 
         # Model
         m = gp.Model("Consumer_Flexibility")
@@ -45,7 +45,6 @@ class OptModel:
         # Decision variables
         p_load = m.addVars(hours, name="p_load", lb=0, ub=max_load)
         p_pv = m.addVars(hours, name="p_pv", lb=0, ub=pv_max)
-        p_pv_curt = m.addVars(hours, name="p_pv_curt", lb=0, ub=pv_max)
         p_import = m.addVars(hours, name="p_import", lb=0, ub=max_import)
         p_export = m.addVars(hours, name="p_export", lb=0, ub=max_export)
         min_total_energy = min_total_energy_hour * max_pv_power  # Convert to kWh/day
@@ -54,18 +53,12 @@ class OptModel:
         self.constraints = {}  
         #Power balance constraint
         for t in hours:
-            self.constraints[f"power_balance[{t}]"] = m.addConstr(
-                p_load[t] == p_pv[t] + p_import[t] - p_export[t],
-                name=f"power_balance[{t}]"
-            )
+            self.constraints[f"power_balance[{t}]"] = m.addConstr(p_load[t] == p_pv[t] + p_import[t] - p_export[t],name=f"power_balance[{t}]")
 
 
 
         # Minimum daily energy constraint 
-        self.constraints["energy_min"] = m.addConstr(
-            gp.quicksum(p_load[t] for t in hours) >= min_total_energy,
-            name="energy_min"
-        )
+        self.constraints["energy_min"] = m.addConstr(gp.quicksum(p_load[t] for t in hours) >= min_total_energy, name="energy_min")
 
         # Objective function: Minimize total cost
         total_cost = gp.quicksum(p_import[t] * (prices[t] + import_tariff)- p_export[t] * (prices[t] - export_tariff) for t in hours)
@@ -237,10 +230,8 @@ class OptModel:
             discharging_efficiency = der_storage_df[0]["discharging_efficiency"]
 
             # Add variables for battery
-            p_ch = m.addVars(hours, name="p_ch", lb=0,
-                            ub=max_ch_power_ratio * storage_capacity)
-            p_dis = m.addVars(hours, name="p_dis", lb=0,
-                            ub=max_dis_power_ratio * storage_capacity)
+            p_ch = m.addVars(hours, name="p_ch", lb=0, ub=max_ch_power_ratio * storage_capacity)
+            p_dis = m.addVars(hours, name="p_dis", lb=0, ub=max_dis_power_ratio * storage_capacity)
             E_bat = m.addVars(hours, name="E_bat", lb=0, ub=storage_capacity)
 
             constraints = {}
@@ -248,24 +239,14 @@ class OptModel:
             # Initial energy in the battery
             E0 = storage_capacity * 0.5
 
-            # Power Balance with battery
+            # Battery initial SoC constraints
             constraints["init_soc"] = m.addConstr(
-                E_bat[0] == E0 + (p_ch[0] * charging_efficiency
-                                - p_dis[0] / discharging_efficiency),
-                name="init_soc"
-            )
-            #End SoC constraint
-            constraints["terminal_soc"] = m.addConstr(
-                E_bat[len(hours) - 1] == E0,
-                name="terminal_soc"
-            )
+                E_bat[0] == E0 + (p_ch[0] * charging_efficiency- p_dis[0] / discharging_efficiency),name="init_soc")
+            #Battery SoC t=23 constraint
+            constraints["terminal_soc"] = m.addConstr(E_bat[len(hours) - 1] == E0, name="terminal_soc")
             #SoC balance constraints
             constraints["soc_balance"] = {
-                t: m.addConstr(
-                    E_bat[t] == E_bat[t - 1] + (p_ch[t] * charging_efficiency
-                                                - p_dis[t] / discharging_efficiency),
-                    name=f"soc_balance[{t}]"
-                )
+                t: m.addConstr(E_bat[t] == E_bat[t - 1] + (p_ch[t] * charging_efficiency - p_dis[t] / discharging_efficiency), name=f"soc_balance[{t}]")
                 for t in range(1, len(hours))
             }
 
@@ -275,30 +256,20 @@ class OptModel:
 
             #Discomfort constraints
             for t in hours:
-                m.addConstr(
-                    p_load[t] - p_ref[t] == s_pos[t] - s_neg[t],
-                    name=f"discomfort_balance[{t}]"
-                )
+                m.addConstr(p_load[t] - p_ref[t] == s_pos[t] - s_neg[t],name=f"discomfort_balance[{t}]")
 
             J_discomfort = gp.quicksum(s_pos[t] + s_neg[t] for t in hours)
 
             # Power balance with battery constraint
             constraints["power_balance"] = {
-                t: m.addConstr(
-                    p_load[t] == p_pv[t] + p_import[t] - p_export[t]
-                                + p_dis[t] - p_ch[t],
-                    name=f"power_balance[{t}]"
-                )
+                t: m.addConstr(p_load[t] == p_pv[t] + p_import[t] - p_export[t]+ p_dis[t] - p_ch[t],name=f"power_balance[{t}]")
                 for t in hours
             }
 
             m.setObjective(J_cost, GRB.MINIMIZE)
 
-            # Constraint: Discomfort must be less than epsilon
-            constraints["epsilon"] = m.addConstr(
-                J_discomfort <= epsilon_discomfort,
-                name="Epsilon_Constraint"
-            )
+            # Constraint discomfort with epsilon
+            constraints["epsilon"] = m.addConstr(J_discomfort <= epsilon_discomfort, name="Epsilon_Constraint")
 
             m.optimize()
 
@@ -315,7 +286,7 @@ class OptModel:
                 print(f"Total energy consumed by load: {total_load:.4f} kWh/day")
                 print(f"Imported from grid: {total_import:.4f} kWh/day")
                 print(f"From PV: {total_pv_used:.4f} kWh/day")
-                print(f" Battery discharge: {total_battery_discharge:.4f} kWh/day")
+                print(f"Battery discharge: {total_battery_discharge:.4f} kWh/day")
                 print(f"Battery charge: {total_battery_charge:.4f} kWh/day")
 
 
@@ -329,10 +300,6 @@ class OptModel:
                 # SOC dynamics duals
                 for t, constr in constraints["soc_balance"].items():
                     print(f"soc_balance[{t}] dual = {constr.Pi:.4f}")
-
-                # Initial / terminal SOC multipliers
-                print(f"init_soc dual = {constraints['init_soc'].Pi:.4f}")
-                print(f"terminal_soc dual = {constraints['terminal_soc'].Pi:.4f}")
 
 
                 return m.ObjVal
