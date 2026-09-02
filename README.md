@@ -1,158 +1,161 @@
-# Assignment 1
+# 46750 - Assignment 1: Demand-Side Flexibility in Active Distribution Grids
 
-## Overview
+Starter repository for **Group Assignment 1** of *46750 - Optimization in Modern Power Systems* (DTU).
+It contains the input data for every question, a small and working Python code base to build on, and
+the instructions below. The structure is a suggestion: adapt it to your needs, but keep it documented
+(update this README) so that your code stays reproducible and easy to grade.
 
-This repository serves as a template for **Group Assignment 1** in the course **46750 - Optimization in Modern Power Systems**. It provides a structured starting point for your project, including:
+## 1. Setup
 
-- Example datasets for all assignment questions
-- Starter Python code to help you begin your analysis
-- Licensing information
-- Dependency files (`requirements.txt` and `environment.yaml`)
-- A `.gitignore` file
-- This `README.md` with setup and usage instructions
+### 1.1 Python environment
 
-**Note:** This structure is not definitive, and can be adapted to meet each groups' needs as the project advances.
+Use one of the two options (both install the same packages).
 
-## Installation
-
-Follow the installation instructions below to start working on your group assignment.
-
-### 1. **Clone the repository**
-
-To begin, create a copy of this repository for your group. 
-
-### 2. **Create a virtual environment**
-
-Follow these steps to set up a clean Python environment and install the required packages, so that all required packages are installed when running your code, and your project packages won’t affect the system or other projects.
-
-#### **Option A: Using pip**
-
-To create an isolated Python environment in a folder called venv (its own Python interpreter + its own site-packages and pip):
+**Option A - pip and venv**
 ```bash
-python -m venv venv 
-```
-Then activate that environment (on macOS/Linux):
-```bash
-source venv/bin/activate 
-```
-Or, using Windows cmd: `\venv\Scripts\Activate.ps1` or Windows PowerShell: `venv\Scripts\Activate.ps1`. Your shell’s PATH is changed so python/pip now point to the ones inside venv.
-
-Install all packages listed in requirements.txt into the active virtual environment (modify the requirements file as needed).
-```bash
+python -m venv venv
+source venv/bin/activate            # macOS / Linux
+# venv\Scripts\activate.bat         # Windows cmd
+# venv\Scripts\Activate.ps1         # Windows PowerShell
 pip install -r requirements.txt
 ```
 
-#### **Option B: Using conda**
-
-Create and activate a virtual environment, using the file environment.yaml (modify the environment file as needed):
+**Option B - conda**
 ```bash
 conda env create -f environment.yaml
-conda activate gurobi-opt
-``` 
+conda activate 46750-a1
+```
 
-### Getting Started
+### 1.2 Gurobi licence
 
-1. **Install dependencies** as described above.
-2. **Explore the starter code** in `main.py` and the `src/` folder to understand the workflow.
-3. **Add your code**:
-    - Implement new functions or classes in the appropriate `src/` subfolder.
-    - Update `main.py` to call your new code for data processing, model setup, or result analysis.
-4. **Run simulations** by executing:
-    ```bash
-    python main.py
-    ```
-    or, if using a Jupyter notebook, run the provided cells.
+The code uses [Gurobi](https://www.gurobi.com) through the `gurobipy` package. The package ships with a
+restricted licence that is large enough for this assignment (models up to 2000 variables/constraints), so
+`python main.py` works out of the box. For unrestricted use, request a free
+[academic licence](https://www.gurobi.com/academia/academic-program-and-licenses/) with your DTU e-mail
+and activate it with `grbgetkey <your-key>` (on the DTU network or VPN).
 
-5. **Visualize results**: Output files, plots, or logs will be generated as specified in your code. Adjust the code to save results in your preferred format.
+### 1.3 Check that everything works
+```bash
+python main.py
+```
+This loads `data/question_1_caseA`, prints a summary of the input data and saves the input figure to
+`results/question_1_caseA/`. Until you complete the model (see Section 3) it prints
+`[skipped] The model has no constraints ...` and stops there - that is expected.
 
-**Note:** As you extend the codebase, document any new scripts or modules, and changes in structure, in this README for clarity and reproducibility.
+## 2. Repository structure
 
-### Starter Code Structure
+```
+main.py                  Entry point: load data -> build model -> solve -> save results and figures
+src/
+  data_loader.py         load_question("question_1_caseA") -> InputData (all parameters, with units)
+  model.py               FlexibleConsumerModel: build() / solve() -> Results (primal + dual values)
+  scenarios.py           Helpers that derive sensitivity scenarios from a base InputData
+  plotting.py            Figures for inputs, optimal schedule, duals and scenario comparisons
+data/
+  question_1_caseA/      One folder per question (two cases for Question 1) - see Section 4
+  question_1_caseB/
+  question_2/
+  question_3/
+results/                 Written by main.py (git-ignored)
+requirements.txt, environment.yaml, LICENSE, .gitignore
+```
 
- The starter code is organized as follows:
+The four modules mirror the workflow you are asked to implement and document: *data loading*,
+*model building*, *solving and extracting results*, *plotting*. Keep them separate as your code grows -
+for example one model class per question in `src/model.py` (or one file per question), and one function per
+experiment in `main.py`.
 
-- `main.py`: Entry point for running simulations and analyses. This script parses arguments, loads data, initializes models, and coordinates the workflow.
-- `src/`: Contains all source code modules.
-    - `src/data_ops/`: Classes and functions for loading, validating, and preprocessing input datasets (e.g., reading JSON files, checking data integrity, and preparing data structures for modeling).
-    - `src/opt_model/`: Modular optimization models and algorithms for each assignment question. Each submodule can represent a different modeling approach or scenario, making it easy to extend or modify optimization logic.
-    - `src/runner/`: Scripts or classes that orchestrate the end-to-end execution of simulations, including setting up experiments, running optimization routines, and collecting results.
-    - `src/utils/`: Utility functions and helpers, such as plotting routines, configuration file parsers, logging setup, and other reusable code snippets.
+## 3. How to use the code
 
-## Input Data Structure
+**Run everything for one question**
+```bash
+python main.py --question question_1_caseA          # base case
+python main.py --question question_1_caseA --scenarios   # + example sensitivity scenarios
+python main.py --show                               # open the figures in a window
+```
 
-The repositories include base datasets under the `data/question_name` directories, organized as follows:
+**Use it from a notebook or your own script** (run from the repository root):
+```python
+from src.data_loader import load_question
+from src.model import FlexibleConsumerModel
+from src.plotting import plot_schedule, plot_duals
+from src.scenarios import scale_prices
 
-- **Consumers Data (`consumers.json`)**  
-    Contains a list of consumers, each with:
-    - `consumer_id`: Unique identifier for the consumer
-    - `connection_bus`: Bus ID where the consumer is connected
-    - `list_appliances`: List of appliance IDs owned by the consumer
+data = load_question("question_1_caseA")
+print(data.summary())
 
-- **Appliances Data (`appliance_params.json`)**  
-    Contains a list of all appliances and their technical characteristics. Each appliance entry includes:
+results = FlexibleConsumerModel(data).build().solve()
+print(results)                    # objective, daily totals, scalar duals
+results.hourly                    # DataFrame: one row per hour with variables, prices and hourly duals
+plot_schedule(results, data)
 
-    - **For DERs (Distributed Energy Resources):**
-        - `DER_id`: Unique identifier for the DER appliance
-        - `DER_type`: DER technology type (e.g., "PV" for solar photovoltaic, "wind" for wind turbine)
-        - `max_power_kW`: Maximum power output (kW)
-        - `min_power_ratio`: Minimum operating power as a fraction of max power (unitless, 0–1)
-        - `max_ramp_rate_up_ratio`: Maximum allowed increase in power per time step, as a fraction of max power (unitless, 0–1)
-        - `max_ramp_rate_down_ratio`: Maximum allowed decrease in power per time step, as a fraction of max power (unitless, 0–1)
+high_spread = scale_prices(data, factor=2.0, keep_mean=True)
+results_hs = FlexibleConsumerModel(high_spread).build().solve()
+```
 
-    - **For Loads:**
-        - `load_id`: Unique identifier for the load appliance
-        - `load_type`: Type of load (e.g., "EV", "heater")
-        - `max_load_kWh_per_hour`: Maximum energy consumption per hour (kWh/h)
-        - `max_ramp_rate_up_ratio`: Maximum allowed increase in load per time step, as a fraction of max load (unitless, 0–1)
-        - `max_ramp_rate_down_ratio`: Maximum allowed decrease in load per time step, as a fraction of max load (unitless, 0–1)
-        - `min_on_time_h`: Minimum consecutive hours the load must stay ON (h)
-        - `min_off_time_h`: Minimum consecutive hours the load must stay OFF (h)
+**What you need to implement.** `FlexibleConsumerModel.build()` in `src/model.py` declares the decision
+variables but leaves the objective and constraints as `TODO`, with the gurobipy pattern shown in comments.
+Complete it with your formulation from Question 1 (utility and PV cost are in `data.consumption_utility` and `data.pv_marginal_cost`), then extend or subclass it for the following questions.
+Everything downstream (solving, extraction of primal and dual values, saving, plotting) already works.
 
-    - **For Storages:**
-        - `storage_id`: Unique identifier for the storage appliance
-        - `storage_capacity_kWh`: Total energy storage capacity (kWh)
-        - `max_charging_power_ratio`: Maximum charging power as a fraction of storage capacity per hour (unitless, 0–1)
-        - `max_discharging_power_ratio`: Maximum discharging power as a fraction of storage capacity per hour (unitless, 0–1)
-        - `charging_efficiency`: Fraction of energy retained during charging (unitless, 0–1)
-        - `discharging_efficiency`: Fraction of energy retained during discharging (unitless, 0–1)
+**Two conventions that make the dual variables come out for free**
 
-**Note:** All ratios are relative to the respective appliance's maximum capacity or power. Units are indicated in parentheses.
-    
+* Store every constraint family in `self.con[<name>]`. `solve()` returns the dual value (Gurobi attribute
+  `Pi`) of every hourly constraint as a column `dual_<name>` of `results.hourly`, and of every single
+  constraint in `results.duals`.
+* Write the bounds you want a dual for as explicit constraints (`m.addConstr(...)`), not as variable bounds
+  (`lb=`, `ub=`). Gurobi reports the sensitivity of a variable bound in the reduced cost (`RC`), not in `Pi`.
+* A quadratic constraint (`m.addQConstr(...)`, Question 3.(c)) has its dual in the attribute `QCPi`, and Gurobi
+  only computes it when the parameter `QCPDual` is 1 - `model.py` sets it and reads the right attribute for you.
+  Gurobi's sign convention is d(objective)/d(right-hand side): for a "<=" constraint in a minimization the value
+  is non-positive; state the convention you use when you report multipliers.
 
-- **Usage Preferences (`usage_preference.json`)**  
-    Specifies user-defined preferences and constraints for energy usage and appliance operation. Example structure:
-    - `consumer_id`: Unique identifier for the consumer
-    - `_preferences`: containing
-        - **Grid preferences**: Preferences for grid interaction (e.g., "prefer self-consumption", "allow export up to X kWh")
-        - **DER preferences**: Preferences for usage of distributed energy resources (e.g., "curtailment cost", "limit wind export", "green consumption ratio")
-        - **Load preferences**: Preferences for consumption (daily/hourly) and flexibility:
-            - `load_id`: Unique load identifier
-            - `min_total_energy_per_day_hour_equivalent`: Minimum daily energy usage (kWh or equivalent hours)
-            - `max_total_energy_per_day_hour_equivalent`: Maximum daily energy usage (kWh or equivalent hours)
-            - `hourly_profile_ratio`: Desired hourly usage pattern (array of ratios)
-        - **Storages**: Preferences for usage of energy storage:
-            - `storage_id`: Unique storage identifier
-            - `initial_soc_ratio`: Initial state of charge (0–1)
-            - `final_soc_ratio`: Desired final state of charge (0–1)
-        - **Heat pumps**: Preferences for heat pump operation (e.g., "min runtime", "preferred hours")
+## 4. Input data
 
-- **DER Production (`DER_production.json`)**  
-    Contains time series data for DER output profiles at each consumer location.
-    - `consumer_id`: Location where the DER is evaluated
-    - `DER_type`: Type of DER (e.g., "PV", "wind")
-    - `hourly_profile_ratio`: Array of normalized hourly production values (0–1)
+Each `data/question_xx/` folder contains the same five JSON files. All time series have 24 hourly values
+(hour 0 to 23), all ratios are dimensionless fractions of the corresponding maximum, and every field name
+carries its unit.
 
-- **Bus Data (`bus_params.json`)**  
-    Defines technical and economic parameters for each network bus.
-    - `bus_id`: Unique bus identifier
-    - `import_tariff`: Tariff for net energy import (DKK/kWh)
-    - `export_tariff`: Tariff for net energy export (DKK/kWh)
-    - `max_import_kw`: Maximum allowed import power (kW)
-    - `max_export_kw`: Maximum allowed export power (kW)
-    - `price_DKK_per_kWh`: Additional price information if applicable
+| Question in the assignment | Data folder | What differs |
+|---|---|---|
+| Question 1 - hourly consumption decision (utility u, PV cost c_PV), case A: c_PV < u | `question_1_caseA` | `consumption_utility_DKK_per_kWh`, PV `marginal_cost_DKK_per_kWh` = 0.3; no reference profile, no daily requirement |
+| Question 1, case B: a more expensive PV | `question_1_caseB` | as case A with PV `marginal_cost_DKK_per_kWh` = 0.9 |
+| Question 2 - separable disutility of deviating from a reference profile (linear and quadratic) | `question_2` | `reference_hourly_profile_ratio`, `max_hourly_deviation_kWh`, `linear_disutility_DKK_per_kWh`, `quadratic_disutility_DKK_per_kWh2`; no utility |
+| Question 3 - intertemporal constraints (daily comfort budgets; minimum daily energy in the bonus question) | `question_3` | utility and PV cost of case A, reference profile and `max_hourly_deviation_kWh`, `max_daily_deviation_kWh` (the budget ε), `min_total_energy_per_day_kWh` (bonus question only) |
 
-**Note:**  
-These files allow customization of user behavior, DER production, and network constraints for simulation and optimization. Students can extend or replace these datasets as needed to conduct adequate simulations and sensitivity analysis. We recommend that any new or modified files follow the same structure for compatibility with the starter code, and easy grading. Please document all new datasets in this README.md file.
+`consumer_params.json` - list of consumers
+: `consumer_id`, `connection_bus`, `list_appliances` (IDs of the consumer's DERs, loads and storages)
 
-## Starter Code Structure
+`appliance_params.json` - technical characteristics, one list per appliance type (`null` if none)
+: **DER**: `DER_id`, `DER_type` (`"PV"`), `max_power_kW`, `marginal_cost_DKK_per_kWh` (cost of every kWh produced), `min_power_ratio`, `max_ramp_rate_up_ratio`, `max_ramp_rate_down_ratio`
+: **load**: `load_id`, `load_type`, `max_load_kWh_per_hour`, `min_load_ratio` (minimum hourly load as a fraction of the maximum), `max_ramp_rate_up_ratio`, `max_ramp_rate_down_ratio`, `min_on_time_h`, `min_off_time_h`
+: **storage**, **heat_pump**: not used in Assignment 1 (`null`)
 
+`usage_preferences.json` - the consumer's flexibility preferences
+: `load_preferences[]`: `load_id`, `consumption_utility_DKK_per_kWh` (value of every kWh consumed), `min_total_energy_per_day_kWh`, `max_total_energy_per_day_kWh`, `reference_hourly_profile_ratio` (preferred consumption each hour as a fraction of `max_load_kWh_per_hour`), `max_hourly_deviation_kWh`, `max_daily_deviation_kWh` (the budget ε of Question 3; in kWh for the linear discomfort, kWh² for the quadratic one), `linear_disutility_DKK_per_kWh`, `quadratic_disutility_DKK_per_kWh2`. Fields that do not apply to a question are `null`.
+: `storage_preferences`, `grid_preferences`, `DER_preferences`, `heat_pump_preferences`: unused in Assignment 1 (`null`)
+
+`DER_production.json` - availability profiles
+: `consumer_id`, `DER_id`, `DER_type`, `hourly_profile_ratio` (available production as a fraction of `max_power_kW`)
+
+`bus_params.json` - grid and market conditions at the connection bus
+: `bus_id`, `import_tariff_DKK_per_kWh`, `export_tariff_DKK_per_kWh`, `energy_price_DKK_per_kWh` (24 values), `max_import_kW`, `max_export_kW` (large, i.e. not binding in Assignment 1)
+
+The ramp-rate and minimum on/off-time fields are not needed in Assignment 1 and can be ignored.
+`load_question()` in `src/data_loader.py` shows exactly how each attribute is derived from these files.
+
+**Modifying or adding data.** For sensitivity analyses, prefer deriving scenarios in code
+(`src/scenarios.py`) over editing the JSON files - it keeps the base case intact and the experiment
+reproducible. If you do add data folders or files, follow the same structure and document them here.
+
+## 5. What is expected of your code
+
+Your repository is part of the submission. The graders should be able to clone it, follow this README,
+and reproduce every number and figure in your report. In practice:
+
+* keep the separation between data loading, model building, solving and plotting;
+* document every function you add (a short docstring stating inputs, outputs and units is enough), and
+  describe any new module or data file in this README;
+* make each experiment of the report runnable with a single command (e.g. `python main.py --question ...`
+  or one notebook cell), and save its outputs under `results/`;
+* commit regularly and with meaningful messages - the git history is also a record of everyone's contribution.

@@ -1,0 +1,22 @@
+[
+  {
+    "consumer_id": "C1",
+    "grid_preferences": null,
+    "DER_preferences": null,
+    "load_preferences": [
+      {
+        "load_id": "FFL_01",
+        "consumption_utility_DKK_per_kWh": 1.45,
+        "min_total_energy_per_day_kWh": null,
+        "max_total_energy_per_day_kWh": null,
+        "reference_hourly_profile_ratio": null,
+        "max_hourly_deviation_kWh": null,
+        "max_daily_deviation_kWh": null,
+        "linear_disutility_DKK_per_kWh": null,
+        "quadratic_disutility_DKK_per_kWh2": null
+      }
+    ],
+    "storage_preferences": null,
+    "heat_pump_preferences": null
+  }
+]
