@@ -1,9 +1,21 @@
 # 46750 - Assignment 1: Demand-Side Flexibility in Active Distribution Grids
 
 Starter repository for **Group Assignment 1** of *46750 - Optimization in Modern Power Systems* (DTU).
-It contains the input data for every question, a small and working Python code base to build on, and
-the instructions below. The structure is a suggestion: adapt it to your needs, but keep it documented
-(update this README) so that your code stays reproducible and easy to grade.
+It contains the input data for every question (in `data/`), a small and working Python code base to
+build on, and the instructions below. The structure is a suggestion: adapt it to your needs, but keep
+it documented (update this README) so that your code stays reproducible and easy to grade.
+
+**Getting your own copy.** This is a public template: on the repository page, click
+**Use this template -> Create a new repository** to create your group's own repository under one
+member's GitHub account (recommended - the group can then work with git), or **Code -> Download ZIP**
+to work without GitHub. Using the Python starter code is recommended but not required; the input data
+in `data/` must be used as provided.
+
+**Submitting your code.** Choose one of the two, and say in your report which one you chose:
+attach your complete project code as a single `.zip` file to your submission in DTU Learn, or give
+the link to your group's GitHub repository on the front page of your report. A linked repository must
+be accessible to the graders (public, or private with the teaching team invited) and must not be
+modified after the deadline - the last commit before the deadline is what is graded.
 
 ## 1. Setup
 
@@ -150,8 +162,9 @@ reproducible. If you do add data folders or files, follow the same structure and
 
 ## 5. What is expected of your code
 
-Your repository is part of the submission. The graders should be able to clone it, follow this README,
-and reproduce every number and figure in your report. In practice:
+Your code is part of the submission (as a repository link or a `.zip`, see the top of this README).
+The graders should be able to open it, follow this README, and reproduce every number and figure in
+your report. In practice:
 
 * keep the separation between data loading, model building, solving and plotting;
 * document every function you add (a short docstring stating inputs, outputs and units is enough), and
