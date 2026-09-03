@@ -77,7 +77,7 @@ class FlexibleConsumerModel:
         self.T = range(data.n_hours)
         self.m = gp.Model(name)
         self.m.Params.OutputFlag = 1 if verbose else 0
-        self.m.Params.QCPDual = 1          # needed to get duals of quadratic constraints (Question 3.(c))
+        self.m.Params.QCPDual = 1          # only relevant if you add a quadratic constraint (none is needed in Assignment 1)
         self.var: dict[str, gp.tupledict | gp.Var] = {}   # decision variables by name
         self.con: dict[str, gp.tupledict | gp.Constr] = {}  # constraints by name (duals read from here)
 
@@ -85,32 +85,43 @@ class FlexibleConsumerModel:
     def build(self) -> "FlexibleConsumerModel":
         """Declare decision variables, objective and constraints.
 
-        TODO (Question 1): complete this method with the objective and the constraints
+        TODO (Question 1): complete this method with the variables, objective and constraints
         of the problem you formulated in Question 1. Keep the naming pattern below so
         that ``solve()`` can return the primal and dual values automatically.
         """
         d, m, T = self.data, self.m, self.T
 
-        # --- Decision variables (all continuous and non-negative). Add or rename as needed.
-        self.var["import"] = m.addVars(T, lb=0.0, name="p_import")   # kWh bought from the grid in hour t
-        self.var["export"] = m.addVars(T, lb=0.0, name="p_export")   # kWh sold to the grid in hour t
-        self.var["load"] = m.addVars(T, lb=0.0, name="p_load")       # kWh consumed by the flexible load
-        self.var["pv"] = m.addVars(T, lb=0.0, name="p_pv")           # kWh of PV production actually used
+        # --- Decision variables --------------------------------------------------------
+        # TODO: identify and declare the decision variables of your formulation.
+        # Store every variable family in self.var["<name>"]: solve() then returns its hourly
+        # values automatically as a column of results.hourly.
+        # Pattern for hourly variables (one per hour):
+        #   self.var["<name>"] = m.addVars(T, lb=-GRB.INFINITY, vtype=GRB.CONTINUOUS, name="<name>")
+        # Pattern for a single (daily) variable:
+        #   self.var["<name>"] = m.addVar(lb=-GRB.INFINITY, vtype=GRB.CONTINUOUS, name="<name>")
+        # Notes:
+        # * gurobipy indexes the names automatically: name="<name>" in addVars(T, ...) creates
+        #   <name>[0], <name>[1], ..., <name>[23] - no need to build per-hour names yourself.
+        # * vtype: the same format takes GRB.BINARY or GRB.INTEGER if you ever need them (the
+        #   problem then becomes a MILP and dual values are no longer defined; solve() skips them).
+        # * lb defaults to 0 in gurobipy: a free variable needs an explicit lb=-GRB.INFINITY, and
+        #   a bound you want a dual for must be an explicit constraint, not lb=/ub= (see the README).
+        # * naming the families "import", "export", "load", "pv" makes the standard plots of
+        #   src/plotting.py work out of the box.
 
         # --- Objective ---------------------------------------------------------------
-        # TODO: minimise the net procurement cost (including the PV production cost) minus the consumption utility. Pattern:
-        #   m.setObjective(gp.quicksum(<expression in t> for t in T), GRB.MINIMIZE)
-        # Useful data: d.energy_price[t], d.import_tariff, d.export_tariff, d.pv_marginal_cost, d.consumption_utility
+        # TODO: express the objective function and its direction (GRB.MINIMIZE or GRB.MAXIMIZE):
+        #   m.setObjective(gp.quicksum(<expression in t> for t in T), <direction>)
+        # The input-data attributes (with units) are documented in src/data_loader.py (InputData).
 
         # --- Constraints -------------------------------------------------------------
-        # TODO: add the constraints of your formulation. Pattern for a family of hourly
-        # constraints (one per hour, duals returned as a 24-vector):
-        #   self.con["balance"] = m.addConstrs(
-        #       (<lhs expression> == <rhs expression> for t in T), name="balance")
+        # TODO: add the constraints of your formulation.
+        # Pattern for hourly constraints (one per hour, duals returned as a 24-vector; names are
+        # indexed automatically, like for the variables):
+        #   self.con["<name>"] = m.addConstrs(
+        #       (<lhs expression> - <rhs expression> <= 0 for t in T), name="<name>")
         # Pattern for a single constraint (dual returned as a scalar):
-        #   self.con["comfort_budget"] = m.addConstr(<expression> <= <value>, name="comfort_budget")
-        # Useful data: d.pv_available[t], d.load_max_kWh, d.load_min_kWh (and, for Questions 2-3, d.reference_load,
-        # d.max_hourly_deviation_kWh, d.max_daily_deviation_kWh; d.min_daily_energy_kWh for the bonus question)
+        #   self.con["<name>"] = m.addConstr(<lhs expression> - <rhs expression> <= 0, name="<name>")
 
         m.update()
         return self

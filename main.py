@@ -1,7 +1,7 @@
 """Entry point: load one question's data, build and solve the model, save results and figures.
 
-    python main.py                          # base case of question_1_caseA
-    python main.py --question question_2    # another data folder
+    python main.py                          # base case of Q1_caseA
+    python main.py --question Q2_linear     # another case
     python main.py --scenarios              # also run the example sensitivity scenarios
 
 Results (CSV, TXT, PNG) are written to ``results/<question>/``. Extend ``run_scenarios``
@@ -66,7 +66,7 @@ def run_scenarios(question: str, out: Path) -> dict[str, Results]:
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    parser.add_argument("--question", default="question_1_caseA", choices=list_questions(), help="data folder to use")
+    parser.add_argument("--question", default="Q1_caseA", choices=list_questions(), help="data case to use")
     parser.add_argument("--scenarios", action="store_true", help="also run the example sensitivity scenarios")
     parser.add_argument("--show", action="store_true", help="open the figures in a window")
     args = parser.parse_args()

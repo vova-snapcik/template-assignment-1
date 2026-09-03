@@ -6,7 +6,7 @@ be chained::
     from src.data_loader import load_question
     from src.scenarios import scale_prices, set_tariffs, scale_pv
 
-    base = load_question("question_1_caseA")
+    base = load_question("Q1_caseA")
     high_spread = scale_prices(base, factor=2.0, keep_mean=True)      # same mean, doubled spread
     no_export_tariff = set_tariffs(high_spread, export_tariff=0.0)
 
