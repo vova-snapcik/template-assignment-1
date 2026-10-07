@@ -82,14 +82,16 @@ class FlexibleConsumerModel:
         self.con: dict[str, gp.tupledict | gp.Constr] = {}  # constraints by name (duals read from here)
 
     # ------------------------------------------------------------------ 2. build
-    def build(self) -> "FlexibleConsumerModel":
+    #def build(self) -> "FlexibleConsumerModel":
+    def build(self):
+        raise NotImplementedError("Override in subclass")
         """Declare decision variables, objective and constraints.
 
         TODO (Question 1): complete this method with the variables, objective and constraints
         of the problem you formulated in Question 1. Keep the naming pattern below so
         that ``solve()`` can return the primal and dual values automatically.
         """
-        d, m, T = self.data, self.m, self.T
+        #d, m, T = self.data, self.m, self.T
 
         # --- Decision variables --------------------------------------------------------
         # TODO: identify and declare the decision variables of your formulation.
@@ -123,8 +125,9 @@ class FlexibleConsumerModel:
         # Pattern for a single constraint (dual returned as a scalar):
         #   self.con["<name>"] = m.addConstr(<lhs expression> - <rhs expression> <= 0, name="<name>")
 
-        m.update()
-        return self
+
+        #m.update()
+        #return self
 
     # ------------------------------------------------------------------ 3. solve
     def solve(self) -> Results:
@@ -176,6 +179,92 @@ class FlexibleConsumerModel:
             duals=duals,
             meta={"scalar_variables": scalars},
         )
+
+
+class FlexibleConsumerModel_Q1(FlexibleConsumerModel):
+    def build(self):
+        d, m, T = self.data, self.m, self.T
+
+        # --- Decision variables --------------------------------------------------------
+        # L_t: flexible load/consumption at hour t [kWh/h]
+        self.var["load"] = m.addVars(T, lb=-gp.GRB.INFINITY, vtype=gp.GRB.CONTINUOUS, name="load")
+
+        # PV_t: PV generation dispatched at hour t [kWh/h]
+        self.var["pv"] = m.addVars(T, lb=-gp.GRB.INFINITY, vtype=gp.GRB.CONTINUOUS, name="pv")
+
+        # P^imp_t: power imported from grid at hour t [kWh/h]
+        self.var["import"] = m.addVars(T, lb=-gp.GRB.INFINITY, vtype=gp.GRB.CONTINUOUS, name="import")
+
+        # P^exp_t: power exported to grid at hour t [kWh/h]
+        self.var["export"] = m.addVars(T, lb=-gp.GRB.INFINITY, vtype=gp.GRB.CONTINUOUS, name="export")
+
+
+        # --- Objective ---------------------------------------------------------------
+        # max Σ_t (u_L * L_t - c^PV * PV_t - p_t^imp * P_t^imp + p_t^exp * P_t^exp)
+        # Note: energy_price is same for both import and export tariff in Question 1
+        m.setObjective(
+            gp.quicksum(
+                d.consumption_utility * self.var["load"][t]
+                - d.pv_marginal_cost * self.var["pv"][t]
+                - d.energy_price[t] * self.var["import"][t]
+                + d.energy_price[t] * self.var["export"][t]
+                for t in T
+            ),
+            gp.GRB.MAXIMIZE
+        )
+
+        # --- Constraints -------------------------------------------------------------
+
+        # (λ_t) Power balance: PV_t - L_t - P^exp_t + P^imp_t = 0 for all t ∈ T
+        self.con["power_balance"] = m.addConstrs(
+            (self.var["pv"][t] - self.var["load"][t] - self.var["export"][t] + self.var["import"][t] == 0
+             for t in T),
+            name="power_balance"
+        )
+
+        # (μ_t^L) Load lower bound: L_t >= L^min becomes L^min - L_t <= 0 for all t ∈ T
+        self.con["load_lower"] = m.addConstrs(
+            (d.load_min_kWh - self.var["load"][t] <= 0
+             for t in T),
+            name="load_lower"
+        )
+
+        # (μ̄_t^L) Load upper bound: L_t <= L^max becomes L_t - L^max <= 0 for all t ∈ T
+        self.con["load_upper"] = m.addConstrs(
+            (self.var["load"][t] - d.load_max_kWh <= 0
+             for t in T),
+            name="load_upper"
+        )
+
+        # (μ_t^PV) PV lower bound: PV_t >= 0 becomes -PV_t <= 0 for all t ∈ T
+        self.con["pv_lower"] = m.addConstrs(
+            (-self.var["pv"][t] <= 0
+             for t in T),
+            name="pv_lower"
+        )
+
+        # (μ̄_t^PV) PV upper bound: PV_t <= PV_t^avail becomes PV_t - PV_t^avail <= 0 for all t ∈ T
+        self.con["pv_upper"] = m.addConstrs(
+            (self.var["pv"][t] - d.pv_available[t] <= 0
+             for t in T),
+            name="pv_upper"
+        )
+
+        # (μ_t^imp) Import non-negativity: P^imp_t >= 0 becomes -P^imp_t <= 0 for all t ∈ T
+        self.con["import_lower"] = m.addConstrs(
+            (-self.var["import"][t] <= 0
+             for t in T),
+            name="import_lower"
+        )
+
+        # (μ_t^exp) Export non-negativity: P^exp_t >= 0 becomes -P^exp_t <= 0 for all t ∈ T
+        self.con["export_lower"] = m.addConstrs(
+            (-self.var["export"][t] <= 0
+             for t in T),
+            name="export_lower"
+        )
+        m.update()
+        return self
 
 
 _STATUS = {
