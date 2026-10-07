@@ -210,3 +210,15 @@ your report. In practice:
 * make each experiment of the report runnable with a single command (e.g. `python main.py --question ...`
   or one notebook cell), and save its outputs under `results/`;
 * commit regularly and with meaningful messages - the git history is also a record of everyone's contribution.
+
+## 6. Question 3 implementation
+
+Question 3 is implemented separately in `src/model_q3.py`. The module contains the unconstrained
+Question 2(c) benchmark, the minimum-daily-energy model, and its battery extension with a cyclic
+end-of-horizon state of charge. Run every base case and sensitivity experiment with:
+
+```bash
+python run_q3.py
+```
+
+The command saves hourly schedules, summary tables, and report-ready figures under `results/Q3/`.
