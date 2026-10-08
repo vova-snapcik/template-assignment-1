@@ -19,7 +19,12 @@ import numpy as np
 import pandas as pd
 
 from src.data_loader import InputData, load_question
-from src.model_q3 import Q3Model, Q3Results
+from src.model_q3 import (
+    FlexibleConsumerModel_Q2Quadratic,
+    FlexibleConsumerModel_Q3,
+    FlexibleConsumerModel_Q3Battery,
+    Q3Results,
+)
 from src.scenarios import scale_prices
 
 
@@ -36,21 +41,22 @@ def solve_case(
     with_battery: bool = False,
 ) -> Q3Results:
     """Build, solve, and save one reproducible Question 3 case."""
-    result = Q3Model(
-        data,
-        enforce_min_energy=enforce_min_energy,
-        with_battery=with_battery,
-        label=label,
-    ).build().solve()
+    if with_battery and not enforce_min_energy:
+        raise ValueError("The battery model includes the minimum-energy requirement.")
+    model_class = (
+        FlexibleConsumerModel_Q3Battery if with_battery
+        else FlexibleConsumerModel_Q3 if enforce_min_energy
+        else FlexibleConsumerModel_Q2Quadratic
+    )
+    result = model_class(data, name=label).build().solve()
     result.save(RESULTS)
     return result
 
 
 def save_figure(fig: plt.Figure, name: str) -> None:
-    """Save a figure both with the numerical outputs and with the LaTeX report."""
-    for folder in (RESULTS, REPORT_FIGURES):
-        folder.mkdir(parents=True, exist_ok=True)
-        fig.savefig(folder / name, dpi=200, bbox_inches="tight")
+    """Save a report-ready figure under ``results/Q3/figures``."""
+    REPORT_FIGURES.mkdir(parents=True, exist_ok=True)
+    fig.savefig(REPORT_FIGURES / name, dpi=200, bbox_inches="tight")
     plt.close(fig)
 
 

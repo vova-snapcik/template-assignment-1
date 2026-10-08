@@ -16,6 +16,7 @@ import matplotlib
 
 from src.data_loader import load_question, list_questions
 from src.model import FlexibleConsumerModel_Q1, Results
+from src.model_q3 import FlexibleConsumerModel_Q3, FlexibleConsumerModel_Q3Battery
 from src.plotting import plot_duals, plot_inputs, plot_scenario_comparison, plot_schedule
 from src.scenarios import scale_prices, scale_pv, set_tariffs
 
@@ -27,8 +28,8 @@ MODEL_MAP = {
     "Q1_caseB": FlexibleConsumerModel_Q1,
     #"Q2_linear": FlexibleConsumerModel_Q2,
     #"Q2_quadratic": FlexibleConsumerModel_Q2,
-    #"Q3": FlexibleConsumerModel_Q3,
-    #"Q3_battery": FlexibleConsumerModel_Q3,
+    "Q3": FlexibleConsumerModel_Q3,
+    "Q3_battery": FlexibleConsumerModel_Q3Battery,
 }
 
 def run_base_case(question: str, out: Path, show: bool) -> Results | None:

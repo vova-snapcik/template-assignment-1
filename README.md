@@ -213,9 +213,12 @@ your report. In practice:
 
 ## 6. Question 3 implementation
 
-Question 3 is implemented separately in `src/model_q3.py`. The module contains the unconstrained
-Question 2(c) benchmark, the minimum-daily-energy model, and its battery extension with a cyclic
-end-of-horizon state of charge. Run every base case and sensitivity experiment with:
+Question 3 is implemented in `src/model_q3.py` as subclasses of `FlexibleConsumerModel`:
+`FlexibleConsumerModel_Q2Quadratic` is the unconstrained Question 2(c) benchmark,
+`FlexibleConsumerModel_Q3` adds the minimum daily energy requirement, and
+`FlexibleConsumerModel_Q3Battery` adds storage with a cyclic end-of-horizon state of charge.
+The standard `main.py --question Q3` and `main.py --question Q3_battery` commands use these classes.
+Run every Question 3 base case and sensitivity experiment with:
 
 ```bash
 python run_q3.py
