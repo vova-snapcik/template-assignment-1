@@ -45,6 +45,7 @@ python main.py --question Q1_caseA
 python main.py --question Q1_caseB
 python main.py --question Q2_linear
 python main.py --question Q2_quadratic
+python run_q2.py
 python main.py --question Q3
 python main.py --question Q3_battery
 python run_q3.py
@@ -52,13 +53,17 @@ python run_q3.py
 `main.py` solves a selected case and writes CSV/TXT results and PNG figures to
 `results/<case>/`. `run_q3.py` additionally reproduces the Q3 comparison,
 sensitivity analysis and battery figures under `results/Q3/`.
-For Pavi's complete Q2 experiments, open `Assignment_01_final.ipynb` in
-JupyterLab from the repository root and run its cells in order.
+`run_q2.py` reproduces Pavi's complete Q2(b)--(e) notebook experiments with
+one command, including the sensitivity tables, comparisons and figures under
+`results/Q2_linear/`, `results/Q2_quadratic/` and `results/Q2_temporal/`.
+The notebook can still be opened interactively, but Jupyter is not needed
+to run the command-line script.
 
 ## 2. Repository structure
 
 ```
 main.py                  Entry point for Q1, Q2 and Q3 base cases
+run_q2.py               Execute the Q2 notebook experiments without Jupyter
 run_q3.py                Q3 experiments and report figures
 src/
   data_loader.py         load_question("Q1_caseA") -> InputData (all parameters, with units)
@@ -97,11 +102,12 @@ results = QuadraticDisutilityModel(data).build().solve()
 print(results)
 ```
 
-Open `Assignment_01_final.ipynb` with the repository root as the working
-directory to reproduce Pavi's Q2(b)--(e) experiments. The notebook imports
-these model classes from `src/model_q2.py` and writes its tables and figures
-under `results/Q2_linear/`, `results/Q2_quadratic/`, and `results/Q2_temporal/`.
-Q2(e) is notebook-only because no dedicated input case is supplied.
+Run `python run_q2.py` from the repository root to reproduce Pavi's
+Q2(b)--(e) experiments. It executes the code cells of
+`Assignment_01_final.ipynb` in order using the same classes from
+`src/model_q2.py`, then saves the comparison tables as CSV files too.
+Q2(e) has no dedicated input case; the experiment uses the Q2 quadratic data
+and the coefficients stated in the notebook.
 
 ## 3. How to use the code
 
