@@ -210,3 +210,18 @@ your report. In practice:
 * make each experiment of the report runnable with a single command (e.g. `python main.py --question ...`
   or one notebook cell), and save its outputs under `results/`;
 * commit regularly and with meaningful messages - the git history is also a record of everyone's contribution.
+
+## 6. Question 3 implementation
+
+Question 3 is implemented in `src/model_q3.py` as subclasses of `FlexibleConsumerModel`:
+`FlexibleConsumerModel_Q2Quadratic` is the unconstrained Question 2(c) benchmark,
+`FlexibleConsumerModel_Q3` adds the minimum daily energy requirement, and
+`FlexibleConsumerModel_Q3Battery` adds storage with a cyclic end-of-horizon state of charge.
+The standard `main.py --question Q3` and `main.py --question Q3_battery` commands use these classes.
+Run every Question 3 base case and sensitivity experiment with:
+
+```bash
+python run_q3.py
+```
+
+The command saves hourly schedules, summary tables, and report-ready figures under `results/Q3/`.
