@@ -16,18 +16,19 @@ import matplotlib
 
 from src.data_loader import load_question, list_questions
 from src.model import FlexibleConsumerModel_Q1, Results
+from src.model_q2 import LinearDisutilityModel, QuadraticDisutilityModel
 from src.model_q3 import FlexibleConsumerModel_Q3, FlexibleConsumerModel_Q3Battery
 from src.plotting import plot_duals, plot_inputs, plot_scenario_comparison, plot_schedule
 from src.scenarios import scale_prices, scale_pv, set_tariffs
 
 RESULTS_DIR = Path(__file__).resolve().parent / "results"
 
-# Map questions to model classes
+# Map each data case to the corresponding group model.
 MODEL_MAP = {
     "Q1_caseA": FlexibleConsumerModel_Q1,
     "Q1_caseB": FlexibleConsumerModel_Q1,
-    #"Q2_linear": FlexibleConsumerModel_Q2,
-    #"Q2_quadratic": FlexibleConsumerModel_Q2,
+    "Q2_linear": LinearDisutilityModel,
+    "Q2_quadratic": QuadraticDisutilityModel,
     "Q3": FlexibleConsumerModel_Q3,
     "Q3_battery": FlexibleConsumerModel_Q3Battery,
 }
@@ -37,7 +38,6 @@ def run_base_case(question: str, out: Path, show: bool) -> Results | None:
     print(data.summary(), "\n")
     plot_inputs(data, save_to=out / "inputs.png")
 
-    #model = FlexibleConsumerModel(data).build()
     ModelClass = MODEL_MAP[question]
     model = ModelClass(data).build()
     try:
@@ -71,7 +71,6 @@ def run_scenarios(question: str, out: Path) -> dict[str, Results]:
 
     runs: dict[str, Results] = {}
     for name, data in scenarios.items():
-        #results = FlexibleConsumerModel(data).build().solve()
         results = ModelClass(data).build().solve()
         results.save(out, tag=name)
         runs[name] = results

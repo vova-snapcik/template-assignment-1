@@ -123,7 +123,7 @@ def run_q3f(base: InputData) -> tuple[pd.DataFrame, pd.DataFrame]:
 def plot_battery_comparison(no_battery: Q3Results, battery: Q3Results) -> None:
     """Show the load, battery operation, state of charge, and grid exchange."""
     h = battery.hourly.index
-    fig, axes = plt.subplots(3, 1, figsize=(9.5, 8.0), sharex=True)
+    fig, axes = plt.subplots(4, 1, figsize=(10, 10), sharex=True, layout="constrained")
     axes[0].step(h, battery.hourly["reference_load"], where="mid", color="black", ls=":", label="Reference")
     axes[0].step(h, no_battery.hourly["load"], where="mid", label="Without battery")
     axes[0].step(h, battery.hourly["load"], where="mid", label="With battery")
@@ -132,22 +132,21 @@ def plot_battery_comparison(no_battery: Q3Results, battery: Q3Results) -> None:
 
     axes[1].bar(h - 0.18, battery.hourly["charge"], width=0.36, label="Charge")
     axes[1].bar(h + 0.18, -battery.hourly["discharge"], width=0.36, label="Discharge")
-    ax_soc = axes[1].twinx()
-    ax_soc.plot(h, battery.hourly["soc"], "k.-", label="State of charge")
     axes[1].set_ylabel("Power [kW]")
-    ax_soc.set_ylabel("SoC [kWh]")
-    lines, labels = axes[1].get_legend_handles_labels()
-    lines2, labels2 = ax_soc.get_legend_handles_labels()
-    axes[1].legend(lines + lines2, labels + labels2, ncol=3, fontsize=8, loc="upper left")
+    axes[1].axhline(0.0, color="black", lw=0.7)
+    axes[1].legend(ncol=2, fontsize=8, loc="upper right")
 
-    axes[2].step(h, no_battery.hourly["import"] - no_battery.hourly["export"], where="mid", label="Net import without battery")
-    axes[2].step(h, battery.hourly["import"] - battery.hourly["export"], where="mid", label="Net import with battery")
-    axes[2].axhline(0.0, color="black", lw=0.7)
-    axes[2].set(xlabel="Hour", ylabel="Net import [kWh/h]", xticks=np.arange(0, 24, 2))
-    axes[2].legend(fontsize=8)
+    axes[2].plot(h, battery.hourly["soc"], "k.-")
+    axes[2].set_ylabel("SoC [kWh]")
+    axes[2].set_ylim(bottom=0)
+
+    axes[3].step(h, no_battery.hourly["import"] - no_battery.hourly["export"], where="mid", label="Without battery")
+    axes[3].step(h, battery.hourly["import"] - battery.hourly["export"], where="mid", label="With battery")
+    axes[3].axhline(0.0, color="black", lw=0.7)
+    axes[3].set(xlabel="Hour", ylabel="Net import [kWh/h]", xticks=np.arange(0, 24, 2))
+    axes[3].legend(fontsize=8)
     for ax in axes:
         ax.grid(alpha=0.2)
-    fig.tight_layout()
     save_figure(fig, "q3g_battery_comparison.png")
 
 

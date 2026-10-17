@@ -1,15 +1,9 @@
 # 46750 - Assignment 1: Demand-Side Flexibility in Active Distribution Grids
 
-Starter repository for **Group Assignment 1** of *46750 - Optimization in Modern Power Systems* (DTU).
-It contains the input data for every question (in `data/`), a small and working Python code base to
-build on, and the instructions below. The structure is a suggestion: adapt it to your needs, but keep
-it documented (update this README) so that your code stays reproducible and easy to grade.
-
-**Getting your own copy.** This is a public template: on the repository page, click
-**Use this template -> Create a new repository** to create your group's own repository under one
-member's GitHub account (recommended - the group can then work with git), or **Code -> Download ZIP**
-to work without GitHub. Using the Python starter code is recommended but not required; the input data
-in `data/` must be used as provided.
+Group code for **Assignment 1** of *46750 - Optimization in Modern Power Systems* (DTU).
+Vlad's Question 1, Pavi's Question 2, and Samuel's Question 3 implementations are
+combined here. Run commands from the repository root so that the shared `data/`
+files and output paths are found correctly.
 
 **Submitting your code.** Choose one of the two, and say in your report which one you chose:
 attach your complete project code as a single `.zip` file to your submission in DTU Learn, or give
@@ -40,28 +34,37 @@ conda activate 46750-a1
 
 ### 1.2 Gurobi licence
 
-The code uses [Gurobi](https://www.gurobi.com) through the `gurobipy` package. The package ships with a
-restricted licence that is large enough for this assignment (models up to 2000 variables/constraints), so
-`python main.py` works out of the box. For unrestricted use, request a free
+The code uses [Gurobi](https://www.gurobi.com) through the `gurobipy` package and needs a valid
+licence. If your installation does not already have one, request a free
 [academic licence](https://www.gurobi.com/academia/academic-program-and-licenses/) with your DTU e-mail
 and activate it with `grbgetkey <your-key>` (on the DTU network or VPN).
 
-### 1.3 Check that everything works
+### 1.3 Run the assignment
 ```bash
-python main.py
+python main.py --question Q1_caseA
+python main.py --question Q1_caseB
+python main.py --question Q2_linear
+python main.py --question Q2_quadratic
+python main.py --question Q3
+python main.py --question Q3_battery
+python run_q3.py
 ```
-This loads the `Q1_caseA` case from `data/`, prints a summary of the input data and saves the
-input figure to `results/Q1_caseA/`. Until you complete the model (see Section 3) it prints
-`[skipped] The model has no constraints ...` and stops there - that is expected.
+`main.py` solves a selected case and writes CSV/TXT results and PNG figures to
+`results/<case>/`. `run_q3.py` additionally reproduces the Q3 comparison,
+sensitivity analysis and battery figures under `results/Q3/`.
+For Pavi's complete Q2 experiments, open `Assignment_01_final.ipynb` in
+JupyterLab from the repository root and run its cells in order.
 
 ## 2. Repository structure
 
 ```
-main.py                  Entry point: load data -> build model -> solve -> save results and figures
+main.py                  Entry point for Q1, Q2 and Q3 base cases
+run_q3.py                Q3 experiments and report figures
 src/
   data_loader.py         load_question("Q1_caseA") -> InputData (all parameters, with units)
-  model.py               FlexibleConsumerModel: build() / solve() -> Results (primal + dual values)
+  model.py               Shared model/results code and Vlad's Q1 model
   model_q2.py            Q2 linear, quadratic and temporally coupled model classes
+  model_q3.py            Q3 minimum-energy and battery model classes
   scenarios.py           Helpers that derive sensitivity scenarios from a base InputData
   plotting.py            Figures for inputs, optimal schedule, duals and scenario comparisons
 data/
@@ -73,7 +76,7 @@ data/
   params_Q2_quadratic.json
   params_Q3.json
   params_Q3_battery.json
-results/                 Written by main.py (git-ignored)
+results/                 Generated outputs (git-ignored)
 Assignment_01_final.ipynb  Question 2 experiments, tables and plots
 requirements.txt, environment.yaml, LICENSE, .gitignore
 ```
@@ -98,46 +101,41 @@ Open `Assignment_01_final.ipynb` with the repository root as the working
 directory to reproduce Pavi's Q2(b)--(e) experiments. The notebook imports
 these model classes from `src/model_q2.py` and writes its tables and figures
 under `results/Q2_linear/`, `results/Q2_quadratic/`, and `results/Q2_temporal/`.
-
-The four modules mirror the workflow you are asked to implement and document: *data loading*,
-*model building*, *solving and extracting results*, *plotting*. Keep them separate as your code grows -
-for example one model class per question in `src/model.py` (or one file per question), and one function per
-experiment in `main.py`.
+Q2(e) is notebook-only because no dedicated input case is supplied.
 
 ## 3. How to use the code
 
-**Run everything for one case**
+**Run a base case or example scenarios**
 ```bash
-python main.py --question Q1_caseA              # base case
-python main.py --question Q1_caseA --scenarios  # + example sensitivity scenarios
-python main.py --show                           # open the figures in a window
+python main.py --question Q1_caseA
+python main.py --question Q1_caseA --scenarios
+python main.py --question Q2_quadratic
+python main.py --question Q3_battery
+python main.py --show
 ```
 
 **Use it from a notebook or your own script** (run from the repository root):
 ```python
 from src.data_loader import load_question
-from src.model import FlexibleConsumerModel
+from src.model import FlexibleConsumerModel_Q1
 from src.plotting import plot_schedule, plot_duals
 from src.scenarios import scale_prices
 
 data = load_question("Q1_caseA")
 print(data.summary())
 
-results = FlexibleConsumerModel(data).build().solve()
+results = FlexibleConsumerModel_Q1(data).build().solve()
 print(results)                    # objective, daily totals, scalar duals
 results.hourly                    # DataFrame: one row per hour with variables, prices and hourly duals
 plot_schedule(results, data)
 
 high_spread = scale_prices(data, factor=2.0, keep_mean=True)
-results_hs = FlexibleConsumerModel(high_spread).build().solve()
+results_hs = FlexibleConsumerModel_Q1(high_spread).build().solve()
 ```
 
-**What you need to implement.** `FlexibleConsumerModel.build()` in `src/model.py` is entirely `TODO`:
-identify and declare the decision variables of your formulation, then add the objective and the
-constraints - the gurobipy pattern for each step is shown in comments (including the `vtype=` to use
-if you ever declare binary variables). Complete it with your formulation from Question 1, then extend
-or subclass it for the following questions.
-Everything downstream (solving, extraction of primal and dual values, saving, plotting) already works.
+`FlexibleConsumerModel` in `src/model.py` supplies common result extraction;
+the runnable formulations are its question-specific subclasses. The Q3 script
+uses its own `Q3Results` wrapper for additional cost and battery metrics.
 
 **Conventions that make the primal and dual values come out for free**
 
