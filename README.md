@@ -61,6 +61,7 @@ main.py                  Entry point: load data -> build model -> solve -> save 
 src/
   data_loader.py         load_question("Q1_caseA") -> InputData (all parameters, with units)
   model.py               FlexibleConsumerModel: build() / solve() -> Results (primal + dual values)
+  model_q2.py            Q2 linear, quadratic and temporally coupled model classes
   scenarios.py           Helpers that derive sensitivity scenarios from a base InputData
   plotting.py            Figures for inputs, optimal schedule, duals and scenario comparisons
 data/
@@ -73,8 +74,30 @@ data/
   params_Q3.json
   params_Q3_battery.json
 results/                 Written by main.py (git-ignored)
+Assignment_01_final.ipynb  Question 2 experiments, tables and plots
 requirements.txt, environment.yaml, LICENSE, .gitignore
 ```
+
+### Question 2 models and experiments
+
+`src/model_q2.py` contains `LinearDisutilityModel` for Q2(b),
+`QuadraticDisutilityModel` for Q2(c), and `TemporallyCoupledDisutilityModel`
+for the optional Q2(e). Each subclasses `FlexibleConsumerModel`, so other
+scripts can use the same `build().solve()` interface. For example:
+
+```python
+from src.data_loader import load_question
+from src.model_q2 import QuadraticDisutilityModel
+
+data = load_question("Q2_quadratic")
+results = QuadraticDisutilityModel(data).build().solve()
+print(results)
+```
+
+Open `Assignment_01_final.ipynb` with the repository root as the working
+directory to reproduce Pavi's Q2(b)--(e) experiments. The notebook imports
+these model classes from `src/model_q2.py` and writes its tables and figures
+under `results/Q2_linear/`, `results/Q2_quadratic/`, and `results/Q2_temporal/`.
 
 The four modules mirror the workflow you are asked to implement and document: *data loading*,
 *model building*, *solving and extracting results*, *plotting*. Keep them separate as your code grows -
